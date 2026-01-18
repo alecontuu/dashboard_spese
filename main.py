@@ -16,8 +16,6 @@ except locale.Error:
 st.set_page_config(page_title="Dashboard Spese", layout="wide")
 
 def main():
-    st.title("📊 Dashboard Spese")
-    
     # Istanziamo il servizio
     service = DataService()
 
@@ -53,6 +51,14 @@ def main():
     # Trova la chiave corrispondente
     selected_month = [k for k, v in month_labels.items() if v == selected_label][0]
     filtered_df = df[df['AnnoMese'] == selected_month].copy()
+
+    # --- TITOLO DINAMICO ---
+    paesi = filtered_df['paese'].dropna().unique()
+    paesi = [p for p in paesi if p.strip().lower() != 'italia']
+    paesi_str = ", ".join(sorted(paesi)) if paesi else "Nessun paese"
+
+    st.title(f"📊 {selected_label}")
+    st.markdown(f"**Paesi:** {paesi_str}")
 
     # --- KPI ---
     tot = filtered_df['totale'].sum()
