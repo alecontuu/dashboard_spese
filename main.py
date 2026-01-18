@@ -130,16 +130,46 @@ def main():
 
     st.plotly_chart(fig, use_container_width=True)
 
-    # --- TABELLA ---
-    with st.expander("Dati Dettagliati"):
-        st.dataframe(
-            filtered_df.sort_values('data'),
-            column_config={
-                "data": st.column_config.DateColumn("Data", format="DD/MM/YYYY"),
-                "totale": st.column_config.NumberColumn("Totale", format="€ %.2f")
-            },
-            use_container_width=True
-        )
+    # --- GRAFICO A TORTA MACROCATEGORIE ---
+    st.subheader("Distribuzione Spese per Macrocategoria")
+
+    # Calcola totale per macrocategoria
+    macro_summary = filtered_df.groupby('macrocategoria')['totale'].sum().reset_index()
+    macro_summary['percentuale'] = (macro_summary['totale'] / macro_summary['totale'].sum() * 100).round(1)
+
+    # Calcola dettaglio categorie per ogni macrocategoria (per hover)
+    categoria_details = filtered_df.groupby(['macrocategoria', 'tipo'])['totale'].sum().reset_index()
+    totale_generale = filtered_df['totale'].sum()
+    categoria_details['percentuale_sul_totale'] = (categoria_details['totale'] / totale_generale * 100).round(1)
+
+    # Crea hover text con dettaglio categorie interne
+    hover_texts = []
+    for _, row in macro_summary.iterrows():
+        macro = row['macrocategoria']
+        detail_df = categoria_details[categoria_details['macrocategoria'] == macro]
+        detail_lines = [f"{r['tipo']}: {r['percentuale_sul_totale']:.1f}%" for _, r in detail_df.iterrows()]
+        hover_text = f"<b>{macro}</b><br>€ {row['totale']:.2f} ({row['percentuale']:.1f}%)<br><br>" + "<br>".join(detail_lines)
+        hover_texts.append(hover_text)
+
+    fig_pie = go.Figure(data=[go.Pie(
+        labels=macro_summary['macrocategoria'],
+        values=macro_summary['totale'],
+        textinfo='label+percent',
+        texttemplate='%{label}<br>€%{value:.2f}<br>(%{percent})',
+        hovertemplate='%{customdata}<extra></extra>',
+        customdata=hover_texts,
+        marker_colors=[colori.get(m, '#888888') for m in macro_summary['macrocategoria']],
+        hole=0.3
+    )])
+
+    fig_pie.update_layout(
+        title=f"Spese per Macrocategoria - {selected_label}",
+        height=500,
+        showlegend=True,
+        legend_title="Macrocategoria"
+    )
+
+    st.plotly_chart(fig_pie, use_container_width=True)
 
 if __name__ == "__main__":
     main()
