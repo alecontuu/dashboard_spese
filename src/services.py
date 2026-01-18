@@ -49,6 +49,9 @@ class DataService:
             # Skip righe vuote
             if not record.get("Nome") and not record.get("Totale"):
                 continue
+            # Skip spese in Italia
+            if record.get("Paese", "").strip().lower() == "italia":
+                continue
             try:
                 obj = ExpenseRecord(**record)
                 validated_data.append(obj)
