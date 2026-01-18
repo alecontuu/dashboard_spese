@@ -1,8 +1,16 @@
 # main.py
 import streamlit as st
 import plotly.graph_objects as go
+import locale
+from datetime import datetime
 from src.services import DataService
 from src.config import MAPPA_CATEGORIE
+
+# Imposta locale italiano per i nomi dei mesi
+try:
+    locale.setlocale(locale.LC_TIME, 'it_IT.UTF-8')
+except locale.Error:
+    locale.setlocale(locale.LC_TIME, '')
 
 # Configurazione Pagina
 st.set_page_config(page_title="Dashboard Spese", layout="wide")
@@ -23,12 +31,27 @@ def main():
     # --- SIDEBAR ---
     st.sidebar.header("Filtri")
     df['AnnoMese'] = df['data'].dt.strftime('%Y-%m')
-    unique_months = sorted(df['AnnoMese'].unique())
-    
+    unique_months = sorted(df['AnnoMese'].unique(), reverse=True)  # Più recenti prima
+
     if not unique_months:
         st.stop()
-        
-    selected_month = st.sidebar.selectbox("Periodo", unique_months, index=len(unique_months)-1)
+
+    # Crea dizionario per mostrare solo nomi mesi (es. "Gennaio")
+    def format_month(ym):
+        year, month = ym.split('-')
+        dt = datetime(int(year), int(month), 1)
+        return dt.strftime('%B').capitalize()
+
+    month_labels = {ym: format_month(ym) for ym in unique_months}
+    display_options = [month_labels[ym] for ym in unique_months]
+
+    # Trova indice del mese corrente
+    current_month = datetime.now().strftime('%Y-%m')
+    default_index = unique_months.index(current_month) if current_month in unique_months else 0
+
+    selected_label = st.sidebar.selectbox("Periodo", display_options, index=default_index)
+    # Trova la chiave corrispondente
+    selected_month = [k for k, v in month_labels.items() if v == selected_label][0]
     filtered_df = df[df['AnnoMese'] == selected_month].copy()
 
     # --- KPI ---
@@ -90,7 +113,7 @@ def main():
 
     fig.update_layout(
         barmode='stack',
-        title=f"Spese {selected_month}",
+        title=f"Spese {selected_label}",
         height=500,
         xaxis_title="",
         yaxis_title="Totale (€)",
