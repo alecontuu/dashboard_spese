@@ -13,10 +13,57 @@ Dashboard interattiva per il monitoraggio delle spese di viaggio, con dati prove
 ## Requisiti
 
 - Python 3.11+
-- [UV](https://docs.astral.sh/uv/) (package manager)
+- [UV](https://docs.astral.sh/uv/) (package manager) - per sviluppo locale
 - Account Google Cloud con API Sheets abilitata
 
-## Installazione
+---
+
+## Deploy su Streamlit Cloud (Produzione)
+
+Il modo più semplice per portare l'app in produzione.
+
+### 1. Push su GitHub
+
+Assicurati che il repository sia su GitHub (pubblico o privato).
+
+### 2. Configura Streamlit Cloud
+
+1. Vai su [share.streamlit.io](https://share.streamlit.io)
+2. Clicca **"New app"**
+3. Seleziona il tuo repository GitHub
+4. Imposta:
+   - **Branch:** `main`
+   - **Main file path:** `main.py`
+
+### 3. Configura i Secrets
+
+In Streamlit Cloud, vai su **Settings → Secrets** e incolla:
+
+```toml
+GOOGLE_SHEET_ID = "IL_TUO_GOOGLE_SHEET_ID"
+
+[gcp_service_account]
+type = "service_account"
+project_id = "il-tuo-project-id"
+private_key_id = "..."
+private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+client_email = "nome@project-id.iam.gserviceaccount.com"
+client_id = "123456789"
+auth_uri = "https://accounts.google.com/o/oauth2/auth"
+token_uri = "https://oauth2.googleapis.com/token"
+auth_provider_x509_cert_url = "https://www.googleapis.com/oauth2/v1/certs"
+client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/..."
+```
+
+> Copia i valori dal tuo `service_account.json` locale.
+
+### 4. Deploy
+
+Clicca **"Deploy"**. Ogni push su `main` farà il redeploy automatico (CI/CD integrato).
+
+---
+
+## Sviluppo Locale
 
 ### 1. Clona il repository
 
@@ -51,26 +98,22 @@ Per accedere ai dati su Google Sheets, serve un file di credenziali Service Acco
 9. Scarica il file e rinominalo `service_account.json`
 10. Spostalo nella **root del progetto** (stessa cartella di `main.py`)
 
-#### Struttura del file (generata automaticamente):
-
-```json
-{
-  "type": "service_account",
-  "project_id": "nome-tuo-progetto",
-  "private_key_id": "abc123...",
-  "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
-  "client_email": "dashboard-spese@nome-tuo-progetto.iam.gserviceaccount.com",
-  "client_id": "123456789",
-  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-  "token_uri": "https://oauth2.googleapis.com/token",
-  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/..."
-}
-```
-
 > **Importante**: Non committare mai questo file! È già incluso nel `.gitignore`.
 
-### 4. Condividi il Google Sheet
+### 4. Configura le variabili d'ambiente
+
+Crea un file `.env` nella root del progetto:
+
+```bash
+GOOGLE_SHEET_ID=IL_TUO_GOOGLE_SHEET_ID
+```
+
+L'ID si trova nell'URL del foglio:
+```
+https://docs.google.com/spreadsheets/d/[SHEET_ID]/edit
+```
+
+### 5. Condividi il Google Sheet
 
 Il service account ha bisogno di accesso al foglio:
 
@@ -81,20 +124,7 @@ Il service account ha bisogno di accesso al foglio:
 5. Imposta permesso **Visualizzatore** (o Lettore)
 6. Clicca **Invia**
 
-### 5. Configura lo Sheet ID
-
-In [src/config.py](src/config.py), aggiorna `SHEET_ID` con l'ID del tuo foglio:
-
-```python
-SHEET_ID = "1ABC...xyz"  # Prendi l'ID dall'URL del foglio
-```
-
-L'ID si trova nell'URL del foglio:
-```
-https://docs.google.com/spreadsheets/d/[SHEET_ID]/edit
-```
-
-## Avvio
+### 6. Avvia l'app
 
 ```bash
 uv run streamlit run main.py
@@ -102,17 +132,23 @@ uv run streamlit run main.py
 
 L'applicazione si aprirà nel browser all'indirizzo `http://localhost:8501`
 
+---
+
 ## Struttura del progetto
 
 ```
 dashboard_spese/
-├── main.py              # Entry point Streamlit
-├── pyproject.toml       # Dipendenze e configurazione progetto
-├── service_account.json # Credenziali Google (da creare)
+├── main.py                           # Entry point Streamlit
+├── pyproject.toml                    # Dipendenze (UV)
+├── requirements.txt                  # Dipendenze (Streamlit Cloud)
+├── service_account.json              # Credenziali Google (solo locale, ignorato da git)
+├── .env                              # Variabili d'ambiente (solo locale, ignorato da git)
+├── .streamlit/
+│   └── secrets.toml.example          # Template per i secrets
 └── src/
-    ├── config.py        # Configurazione (Sheet ID, categorie)
-    ├── models.py        # Modelli Pydantic per validazione dati
-    └── services.py      # Logica di fetch e elaborazione dati
+    ├── config.py                     # Configurazione (Sheet ID, categorie)
+    ├── models.py                     # Modelli Pydantic per validazione dati
+    └── services.py                   # Logica di fetch e elaborazione dati
 ```
 
 ## Formato dati Google Sheet
