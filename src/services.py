@@ -12,6 +12,34 @@ import os
 from src.config import SHEET_ID, SERVICE_ACCOUNT_FILE, ACCOMMODATION_TYPES
 from src.models import ExpenseRecord
 
+# Scopes per Google Sheets API
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
+
+
+def get_google_credentials() -> Credentials:
+    """
+    Recupera le credenziali Google.
+    - Produzione (Streamlit Cloud): usa st.secrets["gcp_service_account"]
+    - Sviluppo locale: usa file service_account.json
+    """
+    try:
+        if "gcp_service_account" in st.secrets:
+            # Produzione: credenziali da Streamlit secrets
+            creds_dict = dict(st.secrets["gcp_service_account"])
+            return Credentials.from_service_account_info(creds_dict, scopes=SCOPES)
+    except FileNotFoundError:
+        # secrets.toml non esiste - siamo in sviluppo locale
+        pass
+
+    # Sviluppo locale: credenziali da file
+    if not os.path.exists(SERVICE_ACCOUNT_FILE):
+        raise FileNotFoundError(f"File credenziali non trovato: {SERVICE_ACCOUNT_FILE}")
+    return Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
+
+
 class DataService:
     def __init__(self):
         self.current_year = datetime.now().year
@@ -19,15 +47,10 @@ class DataService:
     @st.cache_data(ttl=600, show_spinner=False)
     def fetch_and_process_data(_self) -> pd.DataFrame:
         """Recupera dati, valida e applica logica business."""
-        
-        # 1. Connessione
-        if not os.path.exists(SERVICE_ACCOUNT_FILE):
-            st.error(f"File credenziali non trovato in: {SERVICE_ACCOUNT_FILE}")
-            return pd.DataFrame()
 
+        # 1. Connessione
         try:
-            scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
-            creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=scopes)
+            creds = get_google_credentials()
             client = gspread.authorize(creds)
             sh = client.open_by_key(SHEET_ID)
         except Exception as e:

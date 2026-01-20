@@ -1,17 +1,32 @@
 # src/config.py
 import os
+import streamlit as st
 from dotenv import load_dotenv
 
-# Carica variabili d'ambiente da .env (se presente)
+# Carica variabili d'ambiente da .env (se presente, per sviluppo locale)
 load_dotenv()
 
-# ID del Google Sheet (da variabile d'ambiente)
-SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 
-if not SHEET_ID:
-    raise ValueError("GOOGLE_SHEET_ID non definito. Imposta la variabile d'ambiente.")
+def get_sheet_id() -> str:
+    """Recupera SHEET_ID da Streamlit secrets (prod) o env var (dev)."""
+    # Prima prova Streamlit secrets (produzione)
+    try:
+        if "GOOGLE_SHEET_ID" in st.secrets:
+            return st.secrets["GOOGLE_SHEET_ID"]
+    except FileNotFoundError:
+        # secrets.toml non esiste - siamo in sviluppo locale
+        pass
+    # Fallback a variabile d'ambiente (sviluppo locale)
+    sheet_id = os.getenv("GOOGLE_SHEET_ID")
+    if not sheet_id:
+        raise ValueError("GOOGLE_SHEET_ID non definito. Imposta la variabile d'ambiente o Streamlit secrets.")
+    return sheet_id
 
-# Percorso credenziali (lo cerca nella root del progetto)
+
+# ID del Google Sheet
+SHEET_ID = get_sheet_id()
+
+# Percorso credenziali per sviluppo locale
 SERVICE_ACCOUNT_FILE = os.path.join(os.getcwd(), "service_account.json")
 
 # Categorie che attivano la logica di split giorni
